@@ -6,15 +6,30 @@
 
     <body>
 	<h1> student performance form </h1>
-	<form>
-	    <label>Name</label>
-	    <input type="text" name="name"><br><br>
-
-	    <label>kannada</label>
-            <input type="text" name="name"><br><br>
-
-            <label>english</label>
-            <input type="text" name="name"><br><br>
+	<form action="/submit" method="POST">
+	    <label>number of subjects </label>
+	    <input type="number" name="num_subjects" required><br><br>
+	   
+	    <label>number of Easy sub </label>
+            <input type="number" name="easy_subjects" required><br><br>
+           
+            <label>study hours(per day) </label>
+            <input type="number" name="study_hours" required><br><br>
+           
+            <label>phone usage(hours) </label>
+            <input type="number" name="phone_usage" required><br><br>
+           
+            <label>sleep hours </label>
+            <input type="number" name="sleep_hours" required><br><br>
+           
+            <label>attendence in (%)(per) </label>
+            <input type="number" name="attendence" required><br><br>
+           
+            <label>sem 1 percentage </label>
+            <input type="number" name="sem1_percentage" required><br><br>
+           
+            <label>sem 2 percentage </label>
+            <input type="number" name="sem2_percentage" required><br><br>
 
             <button type="submit">submit</button>
         </form>
