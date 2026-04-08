@@ -27,13 +27,32 @@ def submit():
 
     if easy_subjects > num_subjects:
         return "error: easy subjects cannot exceed total subjects"
+
+    if not (0 <= study_hours <= 12):
+        return "study hours must be between 0-12"
+
+    if not (0 <= phone_usage <= 12):
+        return "phone usage must be between 0-12"
+
+    if not (0 <= attendence <= 100):
+        return "attendence must be between 0-100"
+
+    if not (0 <= sem1 <= 100):
+        return "sem1 must be between 0-100"
+
+    if not (0 <= sem2 <= 100):
+        return "sem2 must be between 0-100"
+
+    if not (3 <= sleep_hours <= 12):
+        return "sleep hour must be between 3-12"
+        
     with open("data/data.csv",mode="a",newline="") as file:
         writer = csv.writer(file)
-        writer.writerow([study_hours,phone_usage,sleep_hours,num_subjects,attendence,sem1,sem2])
+        writer.writerow([study_hours,phone_usage,sleep_hours,num_subjects,easy_subjects,attendence,sem1,sem2])
         print("data saved to csv")
         return "data saved successfully"
     
 if __name__ == "__main__":
-    app.run(debug = True)
+    app.run(host="0.0.0.0",port=5000,debug = True)
 
 
