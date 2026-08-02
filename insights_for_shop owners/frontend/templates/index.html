@@ -8,11 +8,13 @@
 <body>
 
     <h1>Retail Customer Insights</h1>
-    <p>Flask is successfully connected!</p>
-    <a href ="/backend">
-        <button>connect to backend</button>
-    </a>
-
+    <label>upload dataset</label>
+    <form action="/uploads" method="POST" enctype="multipart/form-data">
+        <input type="file" name="dataset",accept=".csv">
+        <button type="submit">upload</button>
+    </form>
+    
+        
 </body>
 
 </html>
