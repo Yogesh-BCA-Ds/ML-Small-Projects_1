@@ -8,9 +8,11 @@
 <body>
 
     <h1>Retail Customer Insights</h1>
+    
     <label>upload dataset</label>
+    
     <form action="/uploads" method="POST" enctype="multipart/form-data">
-        <input type="file" name="dataset",accept=".csv">
+        <input type="file" name="dataset",accept=".csv,.xlsx,.xls" required>
         <button type="submit">upload</button>
     </form>
     
