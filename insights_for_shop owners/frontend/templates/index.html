@@ -15,7 +15,13 @@
         <input type="file" name="dataset",accept=".csv,.xlsx,.xls" required>
         <button type="submit">upload</button>
     </form>
-    
+
+    {% if success %}
+        <h2>file loaded successfully"</h2>
+        <p>rows:{{rows}}</P>
+        <p>columns:{{columns}}</p>
+        <p>format:{{file_format}}</p>
+    {% endif %}
         
 </body>
 
