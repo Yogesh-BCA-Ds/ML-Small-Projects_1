@@ -6,6 +6,7 @@ import os
 from flask import Flask, render_template,request
 from werkzeug.utils import secure_filename
 from backend.data_validation import read_file
+from backend.data_profile import profile
 
 app = Flask(__name__,template_folder="frontend/templates")
 
@@ -42,7 +43,8 @@ def upload():
         return "dataset has duplicate columns"
     rows,columns = df.shape
     
-  
+    profile_info = profile(df)    
+    print(profile_info) 
     return render_template("index.html",
                            success=True,
                            rows=rows,
