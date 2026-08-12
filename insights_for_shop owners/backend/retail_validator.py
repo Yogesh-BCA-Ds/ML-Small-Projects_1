@@ -154,6 +154,8 @@ def validate_retail_iteration_1(columns):
         evidence["evidence_score"]
     )
 
+
+
     return {
         "matched_columns": matches,
         "matched_families": list(families),
@@ -163,3 +165,105 @@ def validate_retail_iteration_1(columns):
         "evidence_score": evidence["evidence_score"],
         "confidence": confidence
     }
+
+# --------------------------------------------------
+# Iteration 2 - Part 1
+# Detect observed datatype
+# --------------------------------------------------
+
+def detect_observed_datatype(column_profile):
+
+    original_dtype = str(
+        column_profile["original_dtype"]
+    ).lower()
+
+    numeric_ratio = column_profile.get(
+        "numeric_like_ratio",
+        0
+    )
+
+    date_ratio = column_profile.get(
+        "date_like_ratio",
+        0
+    )
+    # Native numeric data
+    if (
+        "int" in original_dtype
+        or "float" in original_dtype):
+        return "numeric"
+    
+    # Numeric data
+    if numeric_ratio >= 80:
+        return "numeric"
+
+    # Date-like data
+    if date_ratio >= 80:
+        return "date"
+
+    # Native pandas datetime
+    if "datetime" in original_dtype:
+        return "date"
+
+    # Text / object data
+    if (
+        "object" in original_dtype
+        or "string" in original_dtype
+    ):
+        return "text"
+
+    # Boolean data
+    if "bool" in original_dtype:
+        return "boolean"
+
+    # Anything we don't recognize
+    return "unknown"
+
+# --------------------------------------------------
+# Iteration 2 - Part 2
+# Collect datatype evidence
+# --------------------------------------------------
+def collect_datatype_evidence(matches, profile_info):
+
+    datatype_evidence = {}
+
+    for column in matches:
+
+        column_profile = profile_info.get(column)
+
+        if column_profile is None:
+            continue
+
+        observed_datatype = detect_observed_datatype(
+            column_profile
+        )
+
+        datatype_evidence[column] = {
+            "observed_datatype": observed_datatype
+        }
+
+    return datatype_evidence
+
+# --------------------------------------------------
+# Iteration 2 - Part 3
+# Connect ontology + datatype evidence
+# --------------------------------------------------
+
+def validate_retail_iteration_2(columns, profile_info):
+
+    # Step 1: Find ontology matches
+    matches = match_columns(
+        columns,
+        RETAIL_ONTOLOGY
+    )
+
+    # Step 2: Collect datatype evidence
+    datatype_evidence = collect_datatype_evidence(
+        matches,
+        profile_info
+    )
+
+    return {
+        "matched_columns": matches,
+        "datatype_evidence": datatype_evidence
+    }
+

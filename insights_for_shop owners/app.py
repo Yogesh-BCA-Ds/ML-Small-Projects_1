@@ -10,7 +10,7 @@ from werkzeug.utils import secure_filename
 from backend.data_validation import read_file
 from backend.data_profile import profile
 from backend.retail_validator import validate_retail_iteration_1
-
+from backend.retail_validator import validate_retail_iteration_2
 app = Flask(__name__,template_folder="frontend/templates")
 
 
@@ -46,26 +46,37 @@ def upload():
         return "dataset has duplicate columns"
     rows, columns = df.shape
     profile_info = profile(df)
-    retail_result = validate_retail_iteration_1(df.columns)
+    retail_result_1 = validate_retail_iteration_1(df.columns)
+    retail_result_2 = validate_retail_iteration_2(df.columns, profile_info)
 
     print("\n========== RETAIL VALIDATION ==========")   
-    print(retail_result["matched_families"])
+    print(retail_result_1["matched_families"])
 
     print("\nStrong Signals:")
-    print(retail_result["strong_signals"])
+    print(retail_result_1["strong_signals"])
 
     print("\nSupporting Signals:")
-    print(retail_result["supporting_signals"])
+    print(retail_result_1["supporting_signals"])
 
     print("\nWeak Signals:")
-    print(retail_result["weak_signals"])
+    print(retail_result_1["weak_signals"])
 
     print("\nEvidence Score:")
-    print(retail_result["evidence_score"])
+    print(retail_result_1["evidence_score"])
 
     print("\nConfidence:")
-    print(retail_result["confidence"], "%")
+    print(retail_result_1["confidence"], "%")
 
+    print("\n========== ITERATION 2 ==========")
+
+    print("\nMatched Columns:")
+    print(retail_result_2["matched_columns"])
+
+    print("\nDatatype Evidence:")
+    print(retail_result_2["datatype_evidence"])
+
+    print("================================")
+    
     return render_template(
     "index.html",
     success=True,
