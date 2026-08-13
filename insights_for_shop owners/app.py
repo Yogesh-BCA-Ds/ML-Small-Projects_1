@@ -2,15 +2,13 @@
 flask creates the web application
 render template tells flask to get the html file in templates
 '''
-from fileinput import filename
-from fileinput import filename
 import os
 from flask import Flask, render_template,request
 from werkzeug.utils import secure_filename
 from backend.data_validation import read_file
 from backend.data_profile import profile
-from backend.retail_validator import validate_retail_iteration_1
-from backend.retail_validator import validate_retail_iteration_2
+from backend.retail_validator import validate_retail
+
 app = Flask(__name__,template_folder="frontend/templates")
 
 
@@ -46,36 +44,39 @@ def upload():
         return "dataset has duplicate columns"
     rows, columns = df.shape
     profile_info = profile(df)
-    retail_result_1 = validate_retail_iteration_1(df.columns)
-    retail_result_2 = validate_retail_iteration_2(df.columns, profile_info)
+    retail_result = validate_retail(df.columns,profile_info)
+    print("\n========== RETAIL VALIDATION ==========")
 
-    print("\n========== RETAIL VALIDATION ==========")   
-    print(retail_result_1["matched_families"])
+    print("\nMatched Families:")
+    print(retail_result["matched_families"])
+
+    print("\nDetected Concepts:")
+    print(retail_result["detected_concepts"])
 
     print("\nStrong Signals:")
-    print(retail_result_1["strong_signals"])
+    print(retail_result["strong_signals"])
 
     print("\nSupporting Signals:")
-    print(retail_result_1["supporting_signals"])
+    print(retail_result["supporting_signals"])
 
     print("\nWeak Signals:")
-    print(retail_result_1["weak_signals"])
+    print(retail_result["weak_signals"])
 
     print("\nEvidence Score:")
-    print(retail_result_1["evidence_score"])
+    print(retail_result["evidence_score"])
 
-    print("\nConfidence:")
-    print(retail_result_1["confidence"], "%")
+    print("\nCombination Evidence:")
+    print(retail_result["combination_evidence"])
 
-    print("\n========== ITERATION 2 ==========")
+    print("\nStructural Evidence:")
+    print(retail_result["structural_evidence"])
 
-    print("\nMatched Columns:")
-    print(retail_result_2["matched_columns"])
+    print("\nFinal Confidence:")
+    print(retail_result["final_confidence"],"%")
+    print("\nDecision:")
+    print(retail_result["decision"])
 
-    print("\nDatatype Evidence:")
-    print(retail_result_2["datatype_evidence"])
-
-    print("================================")
+    print("\n======================================")
     
     return render_template(
     "index.html",
@@ -83,7 +84,6 @@ def upload():
     rows=rows,
     columns=columns,
     file_format=filename.rsplit(".", 1)[1])
-
 
 if __name__ == "__main__":
     app.run(debug=True)
