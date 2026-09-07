@@ -44,6 +44,7 @@ def profile(df):
                 "column_name": column,
                 "original_dtype": df[column].dtype,
                 "cardinality": df[column].nunique(),
+                'rows':r,
                 "top_values": counts.head(5).to_dict(),
                 "rare_category_count": (counts / counts.sum() < 0.01).sum(),
                 "min_length": lengths.min(),

@@ -7,7 +7,7 @@ from flask import Flask, render_template,request
 from werkzeug.utils import secure_filename
 from backend.data_validation import read_file
 from backend.data_profile import profile
-from backend.retail_validator import validate_retail
+from backend.retail_validator import validate_retail,detect_relationships
 
 app = Flask(__name__,template_folder="frontend/templates")
 
@@ -44,6 +44,9 @@ def upload():
         return "dataset has duplicate columns"
     rows, columns = df.shape
     profile_info = profile(df)
+    relationship_info = detect_relationships(df)
+    print("RELATIONSHIPS:")
+    print(relationship_info)
     retail_result = validate_retail(df.columns,profile_info)
     print("\n========== RETAIL VALIDATION ==========")
 

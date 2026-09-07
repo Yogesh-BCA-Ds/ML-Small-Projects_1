@@ -1,4 +1,5 @@
 import re
+from rapidfuzz import fuzz
 from backend.retail_ontology import RETAIL_ONTOLOGY
 from itertools import combinations
 
@@ -14,26 +15,120 @@ def normalize_column_name(column):
     column = column.strip("_")
 
     return column
+# 2. Fuzzy matching helper
+def fuzzy_match(normalized_column, vocabulary, threshold=90):
+    """
+    Checks whether a normalized column name is sufficiently
+    similar to any vocabulary term.
 
-# 2. Match columns with retail ontology
+    Fuzzy matching is only used as a fallback after exact
+    matching has failed.
+    """
+
+    # Avoid weak fuzzy matches for very short terms.
+    if len(normalized_column) < 4:
+        return False
+
+    for synonym in vocabulary:
+
+        normalized_synonym = normalize_column_name(
+            synonym
+        )
+
+        # Avoid comparing against very short vocabulary terms.
+        if len(normalized_synonym) < 4:
+            continue
+
+        # Conservative fuzzy comparison.
+        similarity = fuzz.ratio(
+            normalized_column,
+            normalized_synonym
+        )
+
+        if similarity >= threshold:
+            return True
+
+    return False
+
+
+# 3. Match columns with retail ontology
 def match_columns(columns, ontology):
+
     matches = {}
+
     for column in columns:
-        normalized_column = normalize_column_name(column)
+
+        normalized_column = normalize_column_name(
+            column
+        )
+
         column_matches = []
-        # Search through ontology
+
+        # --------------------------------------------------
+        # First: exact matching
+        # --------------------------------------------------
+
         for family, concepts in ontology.items():
+
             for concept, vocabulary in concepts.items():
-                if normalized_column in vocabulary:
+
+                normalized_vocabulary = {
+                    normalize_column_name(term)
+                    for term in vocabulary
+                }
+
+                if normalized_column in normalized_vocabulary:
+
                     column_matches.append({
                         "family": family,
                         "concept": concept
                     })
 
+        # --------------------------------------------------
+        # Second: fuzzy fallback
+        # Only run if exact matching found nothing.
+        # --------------------------------------------------
+
+        if not column_matches:
+
+            for family, concepts in ontology.items():
+
+                for concept, vocabulary in concepts.items():
+
+                    if fuzzy_match(
+                        normalized_column,
+                        vocabulary
+                    ):
+
+                        column_matches.append({
+                            "family": family,
+                            "concept": concept
+                        })
+
         if column_matches:
             matches[column] = column_matches
 
     return matches
+
+# # 2. Match columns with retail ontology
+# def match_columns(columns, ontology):
+#     matches = {}
+#     for column in columns:
+#         normalized_column = normalize_column_name(column)
+#         column_matches = []
+#         # Search through ontology
+#         for family, concepts in ontology.items():
+#             for concept, vocabulary in concepts.items():
+#                 if normalized_column in vocabulary:
+#                     column_matches.append({
+#                         "family": family,
+#                         "concept": concept
+#                     })
+
+#         if column_matches:
+#             matches[column] = column_matches
+
+#     return matches
 
 # 3. Collect matched ontology families
 def collect_families(matches):
@@ -224,11 +319,11 @@ def detect_observed_datatype(column_profile):
 # Iteration 2 - Part 2
 # Collect datatype evidence
 # --------------------------------------------------
-def collect_datatype_evidence(matches, profile_info):
+def collect_datatype_evidence(columns, profile_info):
 
     datatype_evidence = {}
 
-    for column in matches:
+    for column in columns:
 
         column_profile = profile_info.get(column)
 
@@ -247,6 +342,8 @@ def collect_datatype_evidence(matches, profile_info):
         }
 
     return datatype_evidence
+
+
 # --------------------------------------------------
 # Iteration 2 - Part 3
 # Connect ontology + datatype evidence
@@ -357,26 +454,92 @@ def validate_retail_iteration_3(columns, profile_info):
 # ============================================================
 # ITERATION 4 — CONCEPT COMBINATIONS
 # ============================================================
+CONCEPT_ROLES = {
+    "product": {
+        "product_id",
+        "product_name",
+        "product_description",
+        "brand",
+        "category",
+        "subcategory"
+    },
 
-RETAIL_COMBINATION_RULES = {
+    "quantity": {
+        "quantity"
+    },
 
-    "strong": [
-        {"required": {"product", "quantity", "price"}},
-        {"required": {"product", "quantity", "sales"}},
-        {"required": {"product", "price", "sales"}},
-        {"required": {"product", "quantity", "price", "date"}},
-    ],
+    "value": {
+        "unit_price",
+        "total_amount",
+        "revenue",
+        "order_value"
+    },
 
-    "supporting": [
-        {"required": {"product", "quantity"}},
-        {"required": {"product", "price"}},
-        {"required": {"product", "sales"}},
-        {"required": {"product", "date"}},
-        {"required": {"customer_identity", "product"}},
-        {"required": {"customer_identity", "sales"}},
-    ]
+    "time": {
+        "transaction_date",
+        "purchase_date",
+        "order_date",
+        "invoice_date",
+        "sale_date"
+    },
+
+    "customer": {
+        "customer_id",
+        "customer_name"
+    },
+
+    "transaction": {
+        "transaction_id",
+        "invoice_id",
+        "order_id"
+    }
 }
+RETAIL_COMBINATION_RULES = [
+    {
+        "roles": {"product", "quantity"},
+        "strength": "supporting"
+    },
 
+    {
+        "roles": {"product", "value"},
+        "strength": "supporting"
+    },
+
+    {
+        "roles": {"transaction", "value"},
+        "strength": "supporting"
+    },
+
+    {
+        "roles": {"transaction", "time"},
+        "strength": "supporting"
+    },
+
+    {
+        "roles": {"customer", "transaction"},
+        "strength": "supporting"
+    },
+
+    {
+        "roles": {"product", "quantity", "value"},
+        "strength": "strong"
+    },
+
+    {
+        "roles": {"product", "quantity", "time"},
+        "strength": "strong"
+    },
+
+    {
+        "roles": {"customer", "transaction", "value"},
+        "strength": "strong"
+    },
+
+    {
+        "roles": {"product", "quantity", "value", "time"},
+        "strength": "strong"
+    }
+]
 
 COMBINATION_SCORES = {
     "strong": 3,
@@ -408,26 +571,30 @@ def generate_concept_combinations(concepts, max_size=4):
 
 def classify_concept_combination(combo):
 
-    combo_set = set(combo)
+    combo_roles = set()
+
+    for concept in combo:
+
+        for role, role_concepts in CONCEPT_ROLES.items():
+
+            if concept in role_concepts:
+                combo_roles.add(role)
 
     matched_strength = None
     matched_size = 0
 
-    for strength, rules in RETAIL_COMBINATION_RULES.items():
+    for rule in RETAIL_COMBINATION_RULES:
 
-        for rule in rules:
+        required_roles = rule["roles"]
 
-            required = rule["required"]
+        if required_roles.issubset(combo_roles):
 
-            if required.issubset(combo_set):
+            if len(required_roles) > matched_size:
 
-                if len(required) > matched_size:
-
-                    matched_strength = strength
-                    matched_size = len(required)
+                matched_strength = rule["strength"]
+                matched_size = len(required_roles)
 
     return matched_strength
-
 
 def analyze_concept_combinations(concepts):
 
@@ -489,24 +656,31 @@ MAX_STRUCTURAL_SCORE = 5
 
 def get_unique_ratio(column_profile):
 
-    # If the profiler already provides a ratio
+    # If profiler provides percentage
     if "unique_ratio" in column_profile:
 
-        return column_profile["unique_ratio"]
+        return (
+            column_profile["unique_ratio"] / 100
+        )
 
     if "uniqueness_ratio" in column_profile:
 
-        return column_profile[
-            "uniqueness_ratio"
-        ]
+        return (
+            column_profile["uniqueness_ratio"] / 100
+        )
 
-    # Otherwise calculate it
+    # Object columns
     unique_count = column_profile.get(
-        "unique_count"
+        "unique"
     )
 
+    if unique_count is None:
+        unique_count = column_profile.get(
+            "cardinality"
+        )
+
     row_count = column_profile.get(
-        "count"
+        "rows"
     )
 
     if (
@@ -533,6 +707,11 @@ def detect_repeated_structure(
     if unique_ratio is None:
         return None
 
+    families = {
+        match["family"]
+        for match in column_matches
+    }
+
     concepts = {
         match["concept"]
         for match in column_matches
@@ -540,7 +719,15 @@ def detect_repeated_structure(
 
     # Transaction / Order ID
     if (
-        "transaction_order" in concepts
+        "transaction_order" in families
+        and any(
+            concept in {
+                "transaction_id",
+                "invoice_id",
+                "order_id"
+            }
+            for concept in concepts
+        )
         and unique_ratio < 1
     ):
 
@@ -555,7 +742,13 @@ def detect_repeated_structure(
 
     # Customer ID
     if (
-        "customer_identity" in concepts
+        "customer_identity" in families
+        and any(
+            concept in {
+                "customer_id"
+            }
+            for concept in concepts
+        )
         and unique_ratio < 1
     ):
 
@@ -568,9 +761,16 @@ def detect_repeated_structure(
                 ]
         }
 
-    # Product
+    # Product identity
     if (
-        "product" in concepts
+        "product" in families
+        and any(
+            concept in {
+                "product_id",
+                "product_name"
+            }
+            for concept in concepts
+        )
         and unique_ratio < 1
     ):
 
@@ -585,6 +785,50 @@ def detect_repeated_structure(
 
     return None
 
+def detect_relationships(df):
+
+    relationships = []
+
+    numeric_columns = (
+        df.select_dtypes(include="number")
+        .columns
+        .tolist()
+    )
+
+    for i in range(len(numeric_columns)):
+
+        for j in range(i + 1, len(numeric_columns)):
+
+            column_a = numeric_columns[i]
+            column_b = numeric_columns[j]
+
+            data = df[
+                [column_a, column_b]
+            ].dropna()
+
+            if len(data) < 2:
+                continue
+
+            correlation = (
+                data[column_a]
+                .corr(data[column_b])
+            )
+
+            if (
+                correlation is not None
+                and abs(correlation) >= 0.95
+            ):
+
+                relationships.append({
+                    "columns": [
+                        column_a,
+                        column_b
+                    ],
+                    "valid": True,
+                    "correlation": correlation
+                })
+
+    return relationships
 
 def detect_numerical_relationship(
     relationship_info
@@ -639,6 +883,13 @@ def analyze_structural_evidence(
             column,
             []
         )
+        print(
+    column,
+    "unique_ratio =",
+    get_unique_ratio(column_profile),
+    "matches =",
+    column_matches
+)
 
         repeated_structure = (
             detect_repeated_structure(
@@ -765,12 +1016,18 @@ def validate_retail(
     # --------------------------------------------------------
     # ITERATION 1
     # --------------------------------------------------------
+    print(profile_info.get("Transaction ID"))
+    print(profile_info.get("Customer ID"))
+    print(profile_info.get("Product ID"))
+    print("PROFILE KEYS:")
+    print(profile_info.keys())
 
     matches = match_columns(
         columns,
         RETAIL_ONTOLOGY
     )
-
+    print("MATCHES:")
+    print(matches)
     families = collect_families(
         matches
     )
@@ -790,10 +1047,12 @@ def validate_retail(
 
     datatype_evidence = (
         collect_datatype_evidence(
-            matches,
+            columns,
             profile_info
         )
     )
+    print("\nDatatype Evidence:")
+    print(datatype_evidence)
 
 
     # --------------------------------------------------------
@@ -806,7 +1065,6 @@ def validate_retail(
             profile_info
         )
     )
-
 
     # --------------------------------------------------------
     # ITERATION 4
