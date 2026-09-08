@@ -221,47 +221,47 @@ def calculate_evidence(families):
         "evidence_score": score
     }
 
-# 7. Calculate simple confidence
-def calculate_confidence(evidence_score):
+# # 7. Calculate simple confidence
+# def calculate_confidence(evidence_score):
 
-    confidence = (evidence_score / 10) * 100
+#     confidence = (evidence_score / 10) * 100
 
-    # Maximum confidence is 100
-    confidence = min(confidence, 100)
+#     # Maximum confidence is 100
+#     confidence = min(confidence, 100)
 
-    return round(confidence, 2)
+#     return round(confidence, 2)
 
 # 8. Iteration 1 Retail Validator
-def validate_retail_iteration_1(columns):
+# def validate_retail_iteration_1(columns):
 
-    # Step 1: Find ontology matches
-    matches = match_columns(
-        columns,
-        RETAIL_ONTOLOGY
-    )
+#     # Step 1: Find ontology matches
+#     matches = match_columns(
+#         columns,
+#         RETAIL_ONTOLOGY
+#     )
 
-    # Step 2: Get unique concept families
-    families = collect_families(matches)
+#     # Step 2: Get unique concept families
+#     families = collect_families(matches)
 
-    # Step 3: Calculate basic evidence
-    evidence = calculate_evidence(families)
+#     # Step 3: Calculate basic evidence
+#     evidence = calculate_evidence(families)
 
-    # Step 4: Calculate confidence
-    confidence = calculate_confidence(
-        evidence["evidence_score"]
-    )
+#     # Step 4: Calculate confidence
+#     confidence = calculate_confidence(
+#         evidence["evidence_score"]
+#     )
 
 
 
-    return {
-        "matched_columns": matches,
-        "matched_families": list(families),
-        "strong_signals": evidence["strong_signals"],
-        "supporting_signals": evidence["supporting_signals"],
-        "weak_signals": evidence["weak_signals"],
-        "evidence_score": evidence["evidence_score"],
-        "confidence": confidence
-    }
+#     return {
+#         "matched_columns": matches,
+#         "matched_families": list(families),
+#         "strong_signals": evidence["strong_signals"],
+#         "supporting_signals": evidence["supporting_signals"],
+#         "weak_signals": evidence["weak_signals"],
+#         "evidence_score": evidence["evidence_score"],
+#         "confidence": confidence
+#     }
 
 # --------------------------------------------------
 # Iteration 2 - Part 1
@@ -349,24 +349,24 @@ def collect_datatype_evidence(columns, profile_info):
 # Connect ontology + datatype evidence
 # --------------------------------------------------
 
-def validate_retail_iteration_2(columns, profile_info):
+# def validate_retail_iteration_2(columns, profile_info):
 
-    # Step 1: Find ontology matches
-    matches = match_columns(
-        columns,
-        RETAIL_ONTOLOGY
-    )
+#     # Step 1: Find ontology matches
+#     matches = match_columns(
+#         columns,
+#         RETAIL_ONTOLOGY
+#     )
 
-    # Step 2: Collect datatype evidence
-    datatype_evidence = collect_datatype_evidence(
-        matches,
-        profile_info
-    )
+#     # Step 2: Collect datatype evidence
+#     datatype_evidence = collect_datatype_evidence(
+#         matches,
+#         profile_info
+#     )
 
-    return {
-        "matched_columns": matches,
-        "datatype_evidence": datatype_evidence
-    }
+#     return {
+#         "matched_columns": matches,
+#         "datatype_evidence": datatype_evidence
+#     }
 
 # --------------------------------------------------
 # Iteration 3 - Part 1
@@ -374,32 +374,14 @@ def validate_retail_iteration_2(columns, profile_info):
 # --------------------------------------------------
 
 def detect_integer_like(column_profile):
+    integer_like_ratio = column_profile.get(
+        "integer_like_ratio"
+    )
 
-    original_dtype = str(
-        column_profile["original_dtype"]
-    ).lower()
-
-    # Native integer columns
-    if "int" in original_dtype:
-        return True
-
-    # For other numeric columns, check whether
-    # the values are mostly whole numbers.
-    min_value = column_profile.get("min")
-    max_value = column_profile.get("max")
-
-    if min_value is None or max_value is None:
+    if integer_like_ratio is None:
         return False
 
-    # If min and max are whole numbers,
-    # treat the column as potentially integer-like.
-    if (
-        float(min_value).is_integer()
-        and float(max_value).is_integer()
-    ):
-        return True
-
-    return False
+    return integer_like_ratio >= 95
 
 # --------------------------------------------------
 # Iteration 3 - Part 2
@@ -432,24 +414,24 @@ def collect_value_pattern_evidence(matches, profile_info):
 # Connect value-pattern evidence
 # --------------------------------------------------
 
-def validate_retail_iteration_3(columns, profile_info):
+# def validate_retail_iteration_3(columns, profile_info):
 
-    # Step 1: Find ontology matches
-    matches = match_columns(
-        columns,
-        RETAIL_ONTOLOGY
-    )
+#     # Step 1: Find ontology matches
+#     matches = match_columns(
+#         columns,
+#         RETAIL_ONTOLOGY
+#     )
 
-    # Step 2: Collect value-pattern evidence
-    value_evidence = collect_value_pattern_evidence(
-        matches,
-        profile_info
-    )
+#     # Step 2: Collect value-pattern evidence
+#     value_evidence = collect_value_pattern_evidence(
+#         matches,
+#         profile_info
+#     )
 
-    return {
-        "matched_columns": matches,
-        "value_evidence": value_evidence
-    }
+#     return {
+#         "matched_columns": matches,
+#         "value_evidence": value_evidence
+#     }
 
 # ============================================================
 # ITERATION 4 — CONCEPT COMBINATIONS
@@ -883,13 +865,13 @@ def analyze_structural_evidence(
             column,
             []
         )
-        print(
-    column,
-    "unique_ratio =",
-    get_unique_ratio(column_profile),
-    "matches =",
-    column_matches
-)
+        # print(
+#     column,
+#     "unique_ratio =",
+#     get_unique_ratio(column_profile),
+#     "matches =",
+#     column_matches
+# )
 
         repeated_structure = (
             detect_repeated_structure(
@@ -946,11 +928,39 @@ def analyze_structural_evidence(
 ACCEPT_THRESHOLD = 70
 REVIEW_THRESHOLD = 40
 
+def calculate_datatype_score(datatype_evidence):
+
+    if not datatype_evidence:
+        return 0
+
+    valid = sum(
+        1
+        for evidence in datatype_evidence.values()
+        if evidence["observed_datatype"] != "unknown"
+    )
+
+    return valid / len(datatype_evidence)
+
+
+def calculate_value_pattern_score(value_evidence):
+
+    if not value_evidence:
+        return 0
+
+    positive = sum(
+        1
+        for evidence in value_evidence.values()
+        if evidence["integer_like"] is True
+    )
+
+    return positive / len(value_evidence)
 
 def calculate_final_confidence(
     evidence_score,
     combination_score,
-    structural_score
+    structural_score,
+    datatype_score,
+    value_pattern_score
 ):
 
     # Existing ontology evidence
@@ -974,11 +984,15 @@ def calculate_final_confidence(
     # Evidence weighting
     final_confidence = (
 
-        basic_confidence * 50
+        basic_confidence * 45
 
-        + combination_confidence * 30
+        + combination_confidence * 25
 
         + structural_confidence * 20
+
+        + datatype_score * 5
+        
+        + value_pattern_score * 5
     )
 
     return round(
@@ -1016,11 +1030,11 @@ def validate_retail(
     # --------------------------------------------------------
     # ITERATION 1
     # --------------------------------------------------------
-    print(profile_info.get("Transaction ID"))
-    print(profile_info.get("Customer ID"))
-    print(profile_info.get("Product ID"))
-    print("PROFILE KEYS:")
-    print(profile_info.keys())
+    # print(profile_info.get("Transaction ID"))
+    # print(profile_info.get("Customer ID"))
+    # print(profile_info.get("Product ID"))
+    # print("PROFILE KEYS:")
+    # print(profile_info.keys())
 
     matches = match_columns(
         columns,
@@ -1051,8 +1065,8 @@ def validate_retail(
             profile_info
         )
     )
-    print("\nDatatype Evidence:")
-    print(datatype_evidence)
+    # print("\nDatatype Evidence:")
+    # print(datatype_evidence)
 
 
     # --------------------------------------------------------
@@ -1065,6 +1079,12 @@ def validate_retail(
             profile_info
         )
     )
+
+    datatype_score = calculate_datatype_score(
+    datatype_evidence)
+
+    value_pattern_score = calculate_value_pattern_score(
+    value_evidence)
 
     # --------------------------------------------------------
     # ITERATION 4
@@ -1120,12 +1140,14 @@ def validate_retail(
     # --------------------------------------------------------
 
     final_confidence = (
-        calculate_final_confidence(
-            evidence_score,
-            combination_score,
-            structural_score
-        )
+    calculate_final_confidence(
+        evidence_score,
+        combination_score,
+        structural_score,
+        datatype_score,
+        value_pattern_score
     )
+)
 
     decision = classify_retail_result(
         final_confidence

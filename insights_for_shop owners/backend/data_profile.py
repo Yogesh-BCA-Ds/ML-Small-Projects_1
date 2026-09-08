@@ -20,6 +20,7 @@ def profile(df):
                 "missing_ratio": df[column].isna().sum() / df[column].shape[0] * 100,
                 "unique": df[column].nunique(),
                 "unique_ratio": df[column].nunique() / df[column].shape[0] * 100,
+                "integer_like_ratio": (df[column].dropna() % 1 == 0).mean() * 100,
                 "min": df[column].min(),
                 "max": df[column].max(),
                 "mean": df[column].mean(),

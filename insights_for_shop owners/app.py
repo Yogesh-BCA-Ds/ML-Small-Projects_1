@@ -44,10 +44,26 @@ def upload():
         return "dataset has duplicate columns"
     rows, columns = df.shape
     profile_info = profile(df)
-    relationship_info = detect_relationships(df)
-    print("RELATIONSHIPS:")
-    print(relationship_info)
+    # print("\nINTEGER-LIKE RATIOS:")
+    # for column, info in profile_info.items():
+    #     print(column, info.get("integer_like_ratio"))
+    # relationship_info = detect_relationships(df)
+    # print("RELATIONSHIPS:")
+    # print(relationship_info)
     retail_result = validate_retail(df.columns,profile_info)
+    # print("\nVALUE PATTERN EVIDENCE:")
+    # print(retail_result.get("value_evidence"))
+
+    # print("\nPROFILE VALUE PATTERNS:")
+
+    # for column, info in profile_info.items():
+    #     print(
+    #     column,
+    #     "numeric_like_ratio =", info.get("numeric_like_ratio"),
+    #     "date_like_ratio =", info.get("date_like_ratio"),
+    #     "digit_only_ratio =", info.get("digit_only_ratio"),
+    #     "alpha_numeric_ratio =", info.get("alpha_numeric_ratio")
+    # )
     print("\n========== RETAIL VALIDATION ==========")
 
     print("\nMatched Families:")
