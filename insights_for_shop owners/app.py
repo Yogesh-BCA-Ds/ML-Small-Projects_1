@@ -8,6 +8,7 @@ from werkzeug.utils import secure_filename
 from backend.data_validation import read_file
 from backend.data_profile import profile
 from backend.retail_validator import validate_retail,detect_relationships
+from backend.semantic_mapper import semantic_map_dataset
 
 app = Flask(__name__,template_folder="frontend/templates")
 
@@ -64,6 +65,7 @@ def upload():
     #     "digit_only_ratio =", info.get("digit_only_ratio"),
     #     "alpha_numeric_ratio =", info.get("alpha_numeric_ratio")
     # )
+    semantic_results = semantic_map_dataset(df,profile_info)
     print("\n========== RETAIL VALIDATION ==========")
 
     print("\nMatched Families:")
@@ -102,7 +104,8 @@ def upload():
     success=True,
     rows=rows,
     columns=columns,
-    file_format=filename.rsplit(".", 1)[1])
+    file_format=filename.rsplit(".", 1)[1],
+    semantic_results=semantic_results)
 
 if __name__ == "__main__":
     app.run(debug=True)
