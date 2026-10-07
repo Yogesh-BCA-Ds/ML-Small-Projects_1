@@ -842,10 +842,8 @@ def calculate_candidate_score(candidate):
         2
     )
 
-        return "LOW"
 
-
- def classify_candidate_score(score):
+def classify_candidate_score(score):
 
     if score >= 75:
 
@@ -860,7 +858,7 @@ def calculate_candidate_score(candidate):
         return "LOW"
 
 
- def score_candidate(candidate):
+def score_candidate(candidate):
 
     score = calculate_candidate_score(
         candidate
@@ -925,60 +923,225 @@ def finalize_mapping(candidate):
     candidate["decision"] = "UNKNOWN"
 
     return candidate
+HIGH_THRESHOLD = 70
+MEDIUM_THRESHOLD = 50
+def merge_candidates(
+    known_matches,
+    token_matches,
+    fuzzy_matches
+):
+    merged = {}
 
+    # Known synonym matches
+    for match in known_matches:
+
+        key = (
+            match["family"],
+            match["concept"]
+        )
+
+        if key not in merged:
+
+            merged[key] = {
+                "family": match["family"],
+                "concept": match["concept"],
+                "known_synonym": False,
+                "token_match": False,
+                "similarity": None
+            }
+
+        merged[key]["known_synonym"] = True
+
+        merged[key]["matched_synonym"] = (
+            match["matched_synonym"]
+        )
+
+
+    # Token matches
+    for match in token_matches:
+
+        key = (
+            match["family"],
+            match["concept"]
+        )
+
+        if key not in merged:
+
+            merged[key] = {
+                "family": match["family"],
+                "concept": match["concept"],
+                "known_synonym": False,
+                "token_match": False,
+                "similarity": None
+            }
+
+        merged[key]["token_match"] = True
+
+        merged[key]["matched_tokens"] = (
+            match["matched_tokens"]
+        )
+
+
+    # Fuzzy matches
+    for match in fuzzy_matches:
+
+        key = (
+            match["family"],
+            match["concept"]
+        )
+
+        if key not in merged:
+
+            merged[key] = {
+                "family": match["family"],
+                "concept": match["concept"],
+                "known_synonym": False,
+                "token_match": False,
+                "similarity": None
+            }
+
+        old_similarity = merged[key]["similarity"]
+
+        if (
+            old_similarity is None
+            or match["similarity"] > old_similarity
+        ):
+
+            merged[key]["similarity"] = (
+                match["similarity"]
+            )
+
+            merged[key]["matched_synonym"] = (
+                match["matched_synonym"]
+            )
+
+    return list(merged.values())
 
 def semantic_map_dataset(df, profile_info):
+
     candidates_by_column = {}
 
     for column in df.columns:
 
-        # Part 3 — known synonym matching
+        # --------------------------------------------------
+        # Part 3 — Known synonym matching
+        # --------------------------------------------------
+
         known_matches = find_known_synonym_matches(
             column,
             RETAIL_ONTOLOGY
         )
 
-        # Part 4 — token matching
+
+        # --------------------------------------------------
+        # Part 4 — Token matching
+        # --------------------------------------------------
+
         token_matches = find_token_matches(
             column,
             RETAIL_ONTOLOGY
         )
 
-        # Part 5 — fuzzy matching
+
+        # --------------------------------------------------
+        # Part 5 — Fuzzy matching
+        # --------------------------------------------------
+
         fuzzy_matches = find_fuzzy_matches(
             column,
             RETAIL_ONTOLOGY
         )
 
-        candidates = []
 
-        # Convert known matches into candidates
-        for match in known_matches:
-            candidates.append({
-                "family": match["family"],
-                "concept": match["concept"],
-                "known_synonym": True,
-                "matched_synonym": match["matched_synonym"]
-            })
+        # --------------------------------------------------
+        # Merge duplicate candidates
+        # --------------------------------------------------
 
-        # Add token matches
-        for match in token_matches:
-            candidates.append({
-                "family": match["family"],
-                "concept": match["concept"],
-                "token_match": True,
-                "matched_tokens": match["matched_tokens"]
-            })
+        candidates = merge_candidates(
+            known_matches,
+            token_matches,
+            fuzzy_matches
+        )
 
-        # Add fuzzy matches
-        for match in fuzzy_matches:
-            candidates.append({
-                "family": match["family"],
-                "concept": match["concept"],
-                "similarity": match["similarity"],
-                "matched_synonym": match["matched_synonym"]
-            })
+
+        # --------------------------------------------------
+        # Get profile information for this column
+        # --------------------------------------------------
+
+        column_profile = profile_info.get(
+            column
+        )
+
+        if column_profile is None:
+
+            candidates_by_column[column] = candidates
+
+            continue
+
+
+        # --------------------------------------------------
+        # Part 6 — Datatype evidence
+        # --------------------------------------------------
+
+        candidates = add_datatype_evidence(
+            candidates,
+            column_profile
+        )
+
+
+        # --------------------------------------------------
+        # Part 7 — Value evidence
+        # --------------------------------------------------
+
+        candidates = add_value_evidence(
+            candidates,
+            column_profile
+        )
+
+
+        # --------------------------------------------------
+        # Part 8 — Cardinality evidence
+        # --------------------------------------------------
+
+        candidates = add_cardinality_evidence(
+            candidates,
+            column_profile
+        )
+
 
         candidates_by_column[column] = candidates
+
+
+    # ------------------------------------------------------
+    # Part 9 — Surrounding concept evidence
+    # ------------------------------------------------------
+
+        candidates_by_column = (
+        add_surrounding_concept_evidence(
+            candidates_by_column
+        )
+    )
+
+        # --------------------------------------------------------
+    # Score each candidate
+    # --------------------------------------------------------
+
+    for column, candidates in candidates_by_column.items():
+
+        for candidate in candidates:
+
+            candidate = score_candidate(
+                candidate
+            )
+
+            candidate = decide_mapping(
+                candidate,
+                HIGH_THRESHOLD,
+                MEDIUM_THRESHOLD
+            )
+
+            candidate = finalize_mapping(
+                candidate
+            )
 
     return candidates_by_column
